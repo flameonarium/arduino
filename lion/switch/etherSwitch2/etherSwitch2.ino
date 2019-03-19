@@ -3,8 +3,6 @@
 #define DEBUG
 #define DEFAULT_SWITCH true
 #define REQ_LEN 250
-//самая длинная строка из памяти (PROGMEM)
-#define MAX_STR 45
 //время на обработку клиенту, ms
 #define DELAY_MS 500
 //время между опросами ethernet
@@ -26,7 +24,7 @@ bool swithers[MAX_SWITCHERS]; //Первые два - не касаемся
 //самая длинная строка из памяти (PROGMEM) если строка длиннее, то изменить!!!
 #define MAX_STR 45
 const char string_00[] PROGMEM = "manual";
-const char string_01[] PROGMEM = "auto";
+const char string_01[] PROGMEM = "auto"; //--
 const char string_02[] PROGMEM = "HTTP/1.1 200 OK\r\nContent-Type: text/html";
 const char string_03[] PROGMEM = "Connection: close\r\n\r\n<!DOCTYPE HTML>";
 const char string_04[] PROGMEM = "<head><style>a{text-decoration:none;}";
@@ -41,7 +39,7 @@ const char string_12[] PROGMEM = "&#1042;&#1050;&#1051;";//ВКЛ
 const char string_13[] PROGMEM = "&#1042;&#1067;&#1050;&#1051;";//ВЫКЛ  
 const char string_14[] PROGMEM = "</a></br>";
 const char string_15[] PROGMEM = "</a></font></html>";
-const char string_16[] PROGMEM = "";//хотел сделать, да ну его нафиг: <head><meta http-equiv=\"refresh\" content=\"0; URL=/manual?turn=status&num=7\" /></head>
+const char string_16[] PROGMEM = ""; //-- //хотел сделать, да ну его нафиг: <head><meta http-equiv=\"refresh\" content=\"0; URL=/manual?turn=status&num=7\" /></head>
 const char string_17[] PROGMEM = "turn";
 const char string_18[] PROGMEM = "on";
 const char string_19[] PROGMEM = "off";
@@ -59,13 +57,13 @@ const char* const string_table[] PROGMEM = {
 char buffer[MAX_STR];
 
 
-byte mac[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
-IPAddress ip(192, 168, 0, 52);
+byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};
+IPAddress ip(192, 168, 0, 60);
 EthernetServer server(80);
 
 
 char *memStrNum(byte strNum){
-  if(strNum>=16)
+  if(strNum>=23)
     strcpy(buffer, "");
   else
     strcpy_P(buffer, (char*)pgm_read_word(&(string_table[strNum])));
@@ -162,7 +160,7 @@ bool getFromClient(EthernetClient client)
     if(urlCharNum++ < REQ_LEN)//больше максимальной длины не читаем
     {
 #ifdef DEBUG
-  Serial.print(c);
+//  Serial.print(c);
 #endif
       if(paramCharNum >= MAX_PARAM_NAME_LEN){//если слишком длинное имя параметра
         readClientToNull(client);
@@ -215,6 +213,8 @@ bool getFromClient(EthernetClient client)
         }else
           urlValues[paramNum][valueCharNum++] = c;
       }
+    }else{
+      readClientToNull(client);
     }
   }
 #ifdef DEBUG
@@ -311,7 +311,7 @@ void badUrl(EthernetClient client){
   if (client.connected()) {
     client.println(memStrNum(2));
     client.println(memStrNum(3));
-    client.println("Bad url, i think...");
+    client.println("<html>Bad url, i think...</html>");
   }
 }
 
@@ -325,9 +325,12 @@ byte findNum(){
   while(strlen(urlParams[paramNum])>0){
     if(strncmp(urlParams[paramNum], memStrNum(22), strlen(memStrNum(22))) == 0){//&num=
 #ifdef DEBUG
-  Serial.println(num);
+  Serial.print("(");
+  Serial.print(urlValues[paramNum]);
+  Serial.print(") ");
 #endif
-      return atoi(urlValues[paramNum]);
+      num = atoi(urlValues[paramNum]);
+      break;
     }
     paramNum++;
   }
@@ -368,7 +371,8 @@ bool onTurn(EthernetClient client, bool manual, byte command){
   Serial.println(command);
 #endif
   byte num = findNum();
-  if(num == 0)
+  bool isOk = false;
+  if(num < 2)
     return false;
   pinMode(num, OUTPUT);
   
@@ -376,26 +380,31 @@ bool onTurn(EthernetClient client, bool manual, byte command){
     case 0: //off
       digitalWrite(num, LOW);
       swithers[num] = false;
-      printSwitchStatus(client, false, manual);
-      return true;
+      //printSwitchStatus(client, false, manual);
+      isOk = true;
+      break;
     case 1: //on
       digitalWrite(num, HIGH);
       swithers[num] = true;
-      printSwitchStatus(client, true, manual);
-      return true;
+      //printSwitchStatus(client, true, manual);
+      isOk = true;
+      break;
     case 2: //switch
       if(swithers[num])
         digitalWrite(num, LOW);
       else
         digitalWrite(num, HIGH);
-        swithers[num] = !swithers[num];
-      printSwitchStatus(client, swithers[num], manual);
-      return true;
+      swithers[num] = !swithers[num];
+      //printSwitchStatus(client, swithers[num], manual);
+      isOk = true;
+      break;
     case 3: //status
-      printSwitchStatus(client, swithers[num], manual);
-      return true;
+      //printSwitchStatus(client, swithers[num], manual);
+      isOk = true;
+      break;
   }
-  return false;
+  printSwitchStatus(client, swithers[num], manual);
+  return isOk;
 }
 
 
@@ -403,13 +412,11 @@ void loop() {
   delay(DELAY_LOOP);
   EthernetClient client = server.available();
   if (client) {
-    
 #ifdef DEBUG
-Serial.println("<client>");
+  Serial.println("<client>");
 #endif
     bool done = false;
     bool urlOk = getFromClient(client);
-    byte paramNum = 0;
     
     if(!urlOk)
       badUrl(client);
@@ -417,11 +424,12 @@ Serial.println("<client>");
       printToClientStart(client);//wha? rly nid it? dn't thnk so.
 
       bool manual = (strncmp(urlPage, memStrNum(0), strlen(memStrNum(0))) == 0); //"manual"
+      byte paramNum = 0;
       while(strlen(urlParams[paramNum])>0){
 #ifdef DEBUG
-Serial.print(urlParams[paramNum]);
-Serial.print(":");
-Serial.println(urlValues[paramNum]);
+  Serial.print(urlParams[paramNum]);
+  Serial.print(":");
+  Serial.println(urlValues[paramNum]);
 #endif
         if(strncmp(urlParams[paramNum], memStrNum(17), strlen(memStrNum(17))) == 0){            //&turn=
           if(strncmp(urlValues[paramNum], memStrNum(18), strlen(memStrNum(18))) == 0){       //on
@@ -460,5 +468,3 @@ Serial.println("<client/>");
     Ethernet.maintain();
   }
 }
-
-
