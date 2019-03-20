@@ -18,7 +18,7 @@
 char urlParams[MAX_PARAMS][MAX_PARAM_NAME_LEN];
 char urlValues[MAX_PARAMS][MAX_PARAM_VAL_LEN];
 char urlPage[MAX_PARAM_NAME_LEN];
-bool swithers[MAX_SWITCHERS]; //Первые два - не касаемся
+bool switchers[MAX_SWITCHERS]; //Первые два - не касаемся
 
 
 //самая длинная строка из памяти (PROGMEM) если строка длиннее, то изменить!!!
@@ -293,7 +293,7 @@ void setup() {
 
   int i;
   for(i=0; i<MAX_SWITCHERS; i++)
-    swithers[i] = DEFAULT_SWITCH;
+    switchers[i] = DEFAULT_SWITCH;
   //pinMode(7, OUTPUT);
   //digitalWrite(7, LOW);
 
@@ -379,31 +379,31 @@ bool onTurn(EthernetClient client, bool manual, byte command){
   switch(command){
     case 0: //off
       digitalWrite(num, LOW);
-      swithers[num] = false;
+      switchers[num] = false;
       //printSwitchStatus(client, false, manual);
       isOk = true;
       break;
     case 1: //on
       digitalWrite(num, HIGH);
-      swithers[num] = true;
+      switchers[num] = true;
       //printSwitchStatus(client, true, manual);
       isOk = true;
       break;
     case 2: //switch
-      if(swithers[num])
+      if(switchers[num])
         digitalWrite(num, LOW);
       else
         digitalWrite(num, HIGH);
-      swithers[num] = !swithers[num];
-      //printSwitchStatus(client, swithers[num], manual);
+      switchers[num] = !switchers[num];
+      //printSwitchStatus(client, switchers[num], manual);
       isOk = true;
       break;
     case 3: //status
-      //printSwitchStatus(client, swithers[num], manual);
+      //printSwitchStatus(client, switchers[num], manual);
       isOk = true;
       break;
   }
-  printSwitchStatus(client, swithers[num], manual);
+  printSwitchStatus(client, switchers[num], manual);
   return isOk;
 }
 
