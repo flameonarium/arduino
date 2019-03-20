@@ -1,5 +1,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
+#include <EEPROM.h>
+
 #define SCRIPT_VERSION "2.1"
 #define SCRIPT_NAME "EtherSwitch"
 #define DEBUG
@@ -385,9 +387,6 @@ bool onTurn(EthernetClient client, bool manual, byte command){
 }
 
 
-byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};
-
-
 bool onStatus(EthernetClient client){
 #ifdef DEBUG
     Serial.print("onStatus> ");
@@ -411,6 +410,11 @@ bool onStatus(EthernetClient client){
     return true;
 }
 
+
+//function to set permanent new ip address
+bool onSetIP(EthernetClient client, char* newIP){
+    return true;
+}
 
 void loop() {
   delay(DELAY_LOOP);
@@ -449,9 +453,10 @@ void loop() {
             done = onTurn(client, manual, 3);
             break;
           }
-        }
-        else if(strncmp(urlValues[paramNum], "status", strlen("status")) == 0){
+        }else if(strncmp(urlParams[paramNum], "status", /*strlen("status")*/ 6) == 0){
             done = onStatus(client);
+        }else if(strncmp(urlParams[paramNum], "setip", /*strlen("setip")*/ 5) == 0){
+            done = onSetIP(client, urlValues[paramNum]);
         }
         paramNum++;
       }
