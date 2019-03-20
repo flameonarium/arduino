@@ -1,5 +1,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
+#define SCRIPT_VERSION "2.1"
+#define SCRIPT_NAME "EtherSwitch"
 #define DEBUG
 #define DEFAULT_SWITCH true
 #define REQ_LEN 250
@@ -71,25 +73,6 @@ char *memStrNum(byte strNum){
 }
 
 
-/*void getFromClient(EthernetClient client){
-char sRequest[REQ_LEN];
-
-  while (client.available()>0) {
-    char c = client.read();
-    if(strlen(sRequest) < REQ_LEN)
-    {
-      int len = strlen(sRequest); 
-      sRequest[len] = c;
-      sRequest[len+1] = '\x0';
-    }
-  }
-#ifdef DEBUG
-  Serial.println(sRequest);
-#endif
-  return sRequest;
-}*/
-
-
 //очистить массив параметров = всё заранее заполнить нолями
 void clearParams(){
 #ifdef DEBUG
@@ -128,7 +111,7 @@ void printParams(){
 
 void readClientToNull(EthernetClient client){
 #ifdef DEBUG
-  Serial.print(" readClientToNull:");
+  Serial.print("readClientToNull> ");
 #endif
   char c;
   while (client.available()>0)
@@ -152,16 +135,13 @@ bool getFromClient(EthernetClient client)
   bool isParamValue = false; //сейчас читаем значения параметра
   clearParams();
 #ifdef DEBUG
-  Serial.println(" getFromClient:");
+  Serial.println("getFromClient>");
 #endif
   while (client.available()>0)
   {
     c = client.read();
     if(urlCharNum++ < REQ_LEN)//больше максимальной длины не читаем
     {
-#ifdef DEBUG
-//  Serial.print(c);
-#endif
       if(paramCharNum >= MAX_PARAM_NAME_LEN){//если слишком длинное имя параметра
         readClientToNull(client);
         return false;
@@ -235,13 +215,10 @@ void printToClientStart(EthernetClient client){
 }
 
 
-void onSwitchON(EthernetClient client){
+void onManualSwitchON(EthernetClient client){
 #ifdef DEBUG
-  Serial.println("onSwitchON>");
+  Serial.println("onManualSwitchON>");
 #endif
-  //digitalWrite(7, HIGH);
-  //return "<head><style>a{text-decoration:none;}</style></head><html><font size=30>&#9830;&nbsp;<a href='/?turn=on'><b>&#1042;&#1050;&#1051;</b></a></br>  &nbsp;&nbsp;&nbsp;<a href='/?turn=off'>&#1042;&#1067;&#1050;&#1051;</a></font></html>";
-  //memStrNum(04) memStrNum(05) memStrNum(08) memStrNum(10) memStrNum(06) memStrNum(12) memStrNum(07) memStrNum(14) memStrNum(09) memStrNum(11) memStrNum(13) memStrNum(15;
   client.println(memStrNum(4));
   client.println(memStrNum(5));
   client.println(memStrNum(8));
@@ -254,17 +231,13 @@ void onSwitchON(EthernetClient client){
   client.println(memStrNum(11));
   client.println(memStrNum(13));
   client.println(memStrNum(15));
-  //return true;
 }
 
 
-void onSwitchOFF(EthernetClient client){
+void onManualSwitchOFF(EthernetClient client){
 #ifdef DEBUG
-  Serial.println("onSwitchOFF>");
+  Serial.println("onManualSwitchOFF>");
 #endif
-  //digitalWrite(7, LOW);
-  //return "<head><style>a{text-decoration:none;}</style></head><html><font size=30>&nbsp;&nbsp;&nbsp;<a href='/?turn=on'>&#1042;&#1050;&#1051;</a></br>  &#9830;&nbsp;<a href='/?turn=off'><b>&#1042;&#1067;&#1050;&#1051;</b></a></font></html>";
-  //memStrNum(04) memStrNum(05) memStrNum(09) memStrNum(10) memStrNum(12) memStrNum(14) memStrNum(08) memStrNum(11) memStrNum(06) memStrNum(13) memStrNum(07) memStrNum(15;
   client.println(memStrNum(4));
   client.println(memStrNum(5));
   client.println(memStrNum(9));
@@ -277,7 +250,6 @@ void onSwitchOFF(EthernetClient client){
   client.println(memStrNum(13));
   client.println(memStrNum(7));
   client.println(memStrNum(15));
-  //return true;
 }
 
 
@@ -350,9 +322,9 @@ void printSwitchStatus(EthernetClient client, bool _status, bool manual){
 #endif
   if(manual){//нарисовать для человека
     if(_status)
-      onSwitchON(client);
+      onManualSwitchON(client);
     else
-      onSwitchOFF(client);
+      onManualSwitchOFF(client);
   }else{//нарисовать для машины
     if(_status)
       client.println(memStrNum(18));//on
@@ -362,7 +334,7 @@ void printSwitchStatus(EthernetClient client, bool _status, bool manual){
 }
 
 
-//0-off, 1-on, 2-switch, 3-status
+//command: 0-off, 1-on, 2-switch, 3-status
 bool onTurn(EthernetClient client, bool manual, byte command){
 #ifdef DEBUG
   Serial.print("onTurn> manual=");
@@ -408,6 +380,33 @@ bool onTurn(EthernetClient client, bool manual, byte command){
 }
 
 
+byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};
+
+
+bool onStatus(EthernetClient client){
+#ifdef DEBUG
+    Serial.print("onStatus> ");
+    client.println("DEBUG");
+#endif
+    client.print("scr_name: ");
+    client.println(SCRIPT_NAME);
+    client.print("scr_ver: ");
+    client.println(SCRIPT_VERSION);
+    client.print("server IP: ");
+    client.println(Ethernet.localIP());
+    client.print("server MAC: ");
+    for(i=0; i<6; i++){
+        client.print(String(mac[i], HEX));
+        client.print(":");
+        }
+    client.println("");
+#ifdef DEBUG
+    Serial.println("ok");
+#endif
+    return true;
+}
+
+
 void loop() {
   delay(DELAY_LOOP);
   EthernetClient client = server.available();
@@ -446,13 +445,12 @@ void loop() {
             break;
           }
         }
+        else if(strncmp(urlValues[paramNum], "status", strlen("status")) == 0){
+            done = onStatus(client);
+        }
         paramNum++;
       }
-      
-      /*if(strncmp(sRequest, memStrNum(0), strlen(memStrNum(0))) == 0)  //"GET /?turn=on "
-        done = onON(client);
-      else if(strncmp(sRequest, memStrNum(1), strlen(memStrNum(1))) == 0)  //"GET /?turn=off "
-        done = onOFF(client);*/
+
 
       if(!done)
         badUrl(client);
