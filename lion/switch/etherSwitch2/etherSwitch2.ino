@@ -4,27 +4,34 @@
 #define SCRIPT_NAME "EtherSwitch"
 #define DEBUG
 #define DEFAULT_SWITCH true
+//the maximum length of client request for parsing
 #define REQ_LEN 250
-//время на обработку клиенту, ms
+//time for one client to be processed, ms
 #define DELAY_MS 500
-//время между опросами ethernet
+//time between client requests ethernet
 #define DELAY_LOOP 100
-//размерности параметров
+//URL parameters size. MAX_PARAMS - how many. URL for example for 4/10/10:
+//http://x.x.x.x/urlPagexxx?urlParams1=urlValues1&urlParams2=urlValues2&urlParams3=urlValues3&urlParams4=urlValues4
 #define MAX_PARAMS 4
 #define MAX_PARAM_NAME_LEN 10
 #define MAX_PARAM_VAL_LEN 10
-//количество переключателей. Первые два - не касаемся
+//swithcers count. 0 and 1 don't touch. There are no D0 and D1 on Arduino.
 #define MAX_SWITCHERS 11
 
-
+//after parsing of client requested url here would be the result of parsing
 char urlParams[MAX_PARAMS][MAX_PARAM_NAME_LEN];
 char urlValues[MAX_PARAMS][MAX_PARAM_VAL_LEN];
 char urlPage[MAX_PARAM_NAME_LEN];
-bool switchers[MAX_SWITCHERS]; //Первые два - не касаемся
+//array of switchers. Every switch number (n) stands for Dn output of Arduino. So there is no switchers[0] and switchers[1]
+bool switchers[MAX_SWITCHERS];
 
 
-//самая длинная строка из памяти (PROGMEM) если строка длиннее, то изменить!!!
+//MAX_STR stands for the length of the longest string in the PROGMEM array.
+//if your strings extend from this number - you should change it
+//this is for optimisation of memory usage for buffer string. Not for every array object
 #define MAX_STR 45
+//count of such strings. Any asked number beyond this one from PROGMEM will return ""
+#define STR_CNT 23
 const char string_00[] PROGMEM = "manual";
 const char string_01[] PROGMEM = "auto"; //--
 const char string_02[] PROGMEM = "HTTP/1.1 200 OK\r\nContent-Type: text/html";
@@ -33,15 +40,15 @@ const char string_04[] PROGMEM = "<head><style>a{text-decoration:none;}";
 const char string_05[] PROGMEM = "</style></head><html><font size=30>";
 const char string_06[] PROGMEM = "<b>";
 const char string_07[] PROGMEM = "</b>";
-const char string_08[] PROGMEM = "&#9830;&nbsp;";//жирная точка рядом с нужным пунктом
-const char string_09[] PROGMEM = "&nbsp;&nbsp;&nbsp;"; //без точки
+const char string_08[] PROGMEM = "&#9830;&nbsp;";//bold point near selected option
+const char string_09[] PROGMEM = "&nbsp;&nbsp;&nbsp;";//no bold point for unselected option
 const char string_10[] PROGMEM = "<a href='/manual?turn=on&num=7'>";
 const char string_11[] PROGMEM = "<a href='/manual?turn=off&num=7'>";
-const char string_12[] PROGMEM = "&#1042;&#1050;&#1051;";//ВКЛ
-const char string_13[] PROGMEM = "&#1042;&#1067;&#1050;&#1051;";//ВЫКЛ  
+const char string_12[] PROGMEM = "&#1042;&#1050;&#1051;";//ON in russian
+const char string_13[] PROGMEM = "&#1042;&#1067;&#1050;&#1051;";//OFF in russian
 const char string_14[] PROGMEM = "</a></br>";
 const char string_15[] PROGMEM = "</a></font></html>";
-const char string_16[] PROGMEM = ""; //-- //хотел сделать, да ну его нафиг: <head><meta http-equiv=\"refresh\" content=\"0; URL=/manual?turn=status&num=7\" /></head>
+const char string_16[] PROGMEM = "";
 const char string_17[] PROGMEM = "turn";
 const char string_18[] PROGMEM = "on";
 const char string_19[] PROGMEM = "off";
@@ -65,7 +72,7 @@ EthernetServer server(80);
 
 
 char *memStrNum(byte strNum){
-  if(strNum>=23)
+  if(strNum>=STR_CNT)
     strcpy(buffer, "");
   else
     strcpy_P(buffer, (char*)pgm_read_word(&(string_table[strNum])));
@@ -73,7 +80,7 @@ char *memStrNum(byte strNum){
 }
 
 
-//очистить массив параметров = всё заранее заполнить нолями
+//clean url parameters array
 void clearParams(){
 #ifdef DEBUG
   Serial.println("clearParams>");
@@ -122,17 +129,18 @@ void readClientToNull(EthernetClient client){
 }
 
 
+//this parses url into parameters arrays
 bool getFromClient(EthernetClient client)
 {
   char c;
-  byte paramNum = 0; //номер параметра в массиве
-  int urlCharNum = 0; //номер символа во всём урле
-  int paramCharNum = 0; //номер символа в имени параметра
-  int valueCharNum = 0; //номер символа в значении параметра
-  bool isPreUrlPage = true; //ещё не дошли до урла
-  bool isUrlPage = false; //сейчас читаем имя страницы
-  bool isParamName = false; //сейчас читаем имя параметра
-  bool isParamValue = false; //сейчас читаем значения параметра
+  byte paramNum = 0; //current parameter number in param array
+  int urlCharNum = 0; //current url symbol number
+  int paramCharNum = 0; //current parameter name character number
+  int valueCharNum = 0; //current parameter value character number
+  bool isPreUrlPage = true; //are we in position before even page name now
+  bool isUrlPage = false; //are we in page name now
+  bool isParamName = false; //are we in parameter name now
+  bool isParamValue = false; //are we in parameter value now
   clearParams();
 #ifdef DEBUG
   Serial.println("getFromClient>");
@@ -140,23 +148,23 @@ bool getFromClient(EthernetClient client)
   while (client.available()>0)
   {
     c = client.read();
-    if(urlCharNum++ < REQ_LEN)//больше максимальной длины не читаем
+    if(urlCharNum++ < REQ_LEN) //no readings after this point
     {
-      if(paramCharNum >= MAX_PARAM_NAME_LEN){//если слишком длинное имя параметра
+      if(paramCharNum >= MAX_PARAM_NAME_LEN){//too long param name
         readClientToNull(client);
         return false;
       }
-      if(valueCharNum >= MAX_PARAM_VAL_LEN){//если слишком длинное значение параметра
+      if(valueCharNum >= MAX_PARAM_VAL_LEN){//too long param value
         readClientToNull(client);
         return false;
       }
-      if(isPreUrlPage){//ещё не дошли до имени страницы
+      if(isPreUrlPage){//skip until page name
         if(c == '/'){
           isPreUrlPage = false;
           isUrlPage = true;
         }
-      }else if(isUrlPage){//если ещё не натолкнулись на "?" значит читаем имя страницы
-        if(c == '?'){//значит имя страницы закончилось
+      }else if(isUrlPage){//if there were no "?" yet - we will read page name
+        if(c == '?'){//this means the end of page name and start of param name
             isUrlPage = false;
             isParamName = true;
             paramCharNum = 0;
@@ -169,14 +177,14 @@ bool getFromClient(EthernetClient client)
         else
           urlPage[paramCharNum++] = c;
       }else if(isParamName){
-        if(c == '='){//имя параметра закончилось
+        if(c == '='){//param name finished
           isParamName = false;
           isParamValue = true;
           valueCharNum = 0;
         }else
           urlParams[paramNum][paramCharNum++] = c;
       }else if(isParamValue){
-        if(c == '&'){//значение параметра закончилось
+        if(c == '&'){//param value finished
           isParamValue = false;
           isParamName = true;
           paramCharNum = 0;
@@ -266,6 +274,7 @@ void setup() {
   int i;
   for(i=0; i<MAX_SWITCHERS; i++)
     switchers[i] = DEFAULT_SWITCH;
+  //TODO: how to initialize switches?
   //pinMode(7, OUTPUT);
   //digitalWrite(7, LOW);
 
@@ -287,7 +296,7 @@ void badUrl(EthernetClient client){
   }
 }
 
-//найти параметр num. 0=нет параметра
+//find the "num" param and give it's value. 0 means no "num"
 byte findNum(){
 #ifdef DEBUG
   Serial.print("findNum> ");
@@ -320,12 +329,12 @@ void printSwitchStatus(EthernetClient client, bool _status, bool manual){
   Serial.print(" manual=");
   Serial.println(manual?"true":"false");
 #endif
-  if(manual){//нарисовать для человека
+  if(manual){//print for human
     if(_status)
       onManualSwitchON(client);
     else
       onManualSwitchOFF(client);
-  }else{//нарисовать для машины
+  }else{//print for automation
     if(_status)
       client.println(memStrNum(18));//on
     else
@@ -352,13 +361,11 @@ bool onTurn(EthernetClient client, bool manual, byte command){
     case 0: //off
       digitalWrite(num, LOW);
       switchers[num] = false;
-      //printSwitchStatus(client, false, manual);
       isOk = true;
       break;
     case 1: //on
       digitalWrite(num, HIGH);
       switchers[num] = true;
-      //printSwitchStatus(client, true, manual);
       isOk = true;
       break;
     case 2: //switch
@@ -367,11 +374,9 @@ bool onTurn(EthernetClient client, bool manual, byte command){
       else
         digitalWrite(num, HIGH);
       switchers[num] = !switchers[num];
-      //printSwitchStatus(client, switchers[num], manual);
       isOk = true;
       break;
     case 3: //status
-      //printSwitchStatus(client, switchers[num], manual);
       isOk = true;
       break;
   }
@@ -420,7 +425,7 @@ void loop() {
     if(!urlOk)
       badUrl(client);
     else{
-      printToClientStart(client);//wha? rly nid it? dn't thnk so.
+      printToClientStart(client);//wha? rly nid it? dn't thnk so. (after thinking i think it may be a necessity
 
       bool manual = (strncmp(urlPage, memStrNum(0), strlen(memStrNum(0))) == 0); //"manual"
       byte paramNum = 0;
@@ -454,14 +459,13 @@ void loop() {
 
       if(!done)
         badUrl(client);
-      // give the web browser time to receive the data
+      // give the client web browser time to receive data. Is there a better way for this? Should be something
       delay(DELAY_MS);
       client.stop();
     
 #ifdef DEBUG
 Serial.println("<client/>");
 #endif
-      //Ethernet.maintain(); - было тут. Что будет, если вынести за цикл?
     }
     Ethernet.maintain();
   }
