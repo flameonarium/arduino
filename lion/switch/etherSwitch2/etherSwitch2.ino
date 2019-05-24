@@ -3,7 +3,7 @@
 //================================= libraries ========================================================================//
 #include <SPI.h>
 #include <Ethernet.h>
-#include <EEPROM.h>
+#include "lionEEPROM.h"
 
 //================================= predefines =======================================================================//
 #define SCRIPT_VERSION "2.1"
@@ -33,7 +33,7 @@ char urlPage[MAX_PARAM_NAME_LEN];
 bool switchers[MAX_SWITCHERS];
 
 
-byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};
+byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};//01:01:01:01:FF:01
 IPAddress ip(192, 168, 0, 60);
 EthernetServer server(80);
 
@@ -407,7 +407,7 @@ bool onStatus(EthernetClient client){
     client.println(Ethernet.localIP());
     client.print("server MAC: ");
     for(i=0; i<6; i++){
-        client.print(String(mac[i], HEX));
+        client.print(mac[i], HEX);  //took out String() it might work!
         client.print(":");
         }
     client.println("");
@@ -420,7 +420,7 @@ bool onStatus(EthernetClient client){
 
 //function to set permanent new ip address
 bool onSetIP(EthernetClient client, char* newIP){
-    return true;
+    return true;//TODO: ok, here we go again
 }
 
 

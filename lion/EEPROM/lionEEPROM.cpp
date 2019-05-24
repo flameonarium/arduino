@@ -1,0 +1,106 @@
+#include "WProgram.h"
+#include "lionEEPROM.h"
+
+lionEEPROM::lionEEPROM(){
+
+}
+
+bool lionEEPROM::load(){
+    int i;
+    char str[16];
+    //on construct do a read of structure
+    EEPROM.get(0, memory);
+
+    //check for "init" sequance. If it is already in the memory - so the memory was inititalized previously
+    if(initialized = (strncmp(memory.init, "init", sizeof(memory.init)) == 0)){
+        //initDate
+        initDate[0] = '\0';
+        for(i = 0; i < 3; i++){
+            if(i != 2){
+                itoa(memory.date[i], &str);
+                strcat(netIP, str);
+                strcat(netIP, '.');
+                }
+            else{
+                itoa(memory.date[i] + 2000, &str);
+                strcat(netIP, str);
+            }
+        }
+
+        //ver
+        ver = memory.ver;
+
+        //netIP
+        netIP[0] = '\0';
+        for(i = 0; i < 4; i++){
+            itoa(memory.ip[i], &str);
+            strcat(netIP, str);
+            if(i != 3)
+                strcat(netIP, '.');
+        }
+
+        //netMAC
+        netMAC[0] = '\0';
+        for(i = 0; i < 6; i++){
+            itoa(memory.mac[i], &str, 16);
+            strcat(netMAC, str);
+            if(i != 5)
+                strcat(netMAC, ':');
+        }
+
+        //char switchers[12];//--tff--ff-- + \0
+        switchers[12] = '\0';
+        for(i = 0; i < 11; i++){
+            switch(memory.switchers[i]){
+                case 0:
+                    switchers[i] = '-';
+                    break;
+                case 1:
+                    switchers[i] = 't';
+                    break;
+                case 2:
+                    switchers[i] = 'f';
+                    break;
+                default:
+                    switchers[i] = 'E';
+            }
+        }
+    }
+    //do nothing if it was not pre initialized
+    return initialized;
+}
+
+
+void lionEEPROM::save(byte dateDD, byte dateMM, byte dateYY){
+    memory.date[0] = dateDD;
+    memory.date[1] = dateMM;
+    memory.date[2] = dateYY;
+    memory.ver = EEPROM_VERSION;
+    memory.init = "init";
+    EEPROM.put(0, memory);
+    load();
+}
+
+
+void lionEEPROM::setIP(byte ip1, byte ip2, byte ip3, byte ip4){
+    memory.ip[0] = ip1;
+    memory.ip[1] = ip2;
+    memory.ip[2] = ip3;
+    memory.ip[3] = ip4;
+}
+
+
+void lionEEPROM::setMAC(byte mac1, byte mac2, byte mac3, byte mac4, byte mac5, byte mac6){
+    memory.mac[0] = mac1;
+    memory.mac[1] = mac2;
+    memory.mac[2] = mac3;
+    memory.mac[3] = mac4;
+    memory.mac[4] = mac5;
+    memory.mac[5] = mac6;
+}
+
+
+void lionEEPROM::setSwitch(byte indx, byte value){
+    if(indx < 11)
+        memory.switchers[indx] = value;
+}
