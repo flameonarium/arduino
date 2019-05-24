@@ -1,7 +1,11 @@
+//====================================================================================================================//
+
+//================================= libraries ========================================================================//
 #include <SPI.h>
 #include <Ethernet.h>
 #include <EEPROM.h>
 
+//================================= predefines =======================================================================//
 #define SCRIPT_VERSION "2.1"
 #define SCRIPT_NAME "EtherSwitch"
 #define DEBUG
@@ -20,6 +24,7 @@
 //swithcers count. 0 and 1 don't touch. There are no D0 and D1 on Arduino.
 #define MAX_SWITCHERS 11
 
+//================================= global variables =================================================================//
 //after parsing of client requested url here would be the result of parsing
 char urlParams[MAX_PARAMS][MAX_PARAM_NAME_LEN];
 char urlValues[MAX_PARAMS][MAX_PARAM_VAL_LEN];
@@ -28,6 +33,11 @@ char urlPage[MAX_PARAM_NAME_LEN];
 bool switchers[MAX_SWITCHERS];
 
 
+byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};
+IPAddress ip(192, 168, 0, 60);
+EthernetServer server(80);
+
+//================================= working with PROGMEM =============================================================//
 //MAX_STR stands for the length of the longest string in the PROGMEM array.
 //if your strings extend from this number - you should change it
 //this is for optimisation of memory usage for buffer string. Not for every array object
@@ -68,11 +78,6 @@ const char* const string_table[] PROGMEM = {
 char buffer[MAX_STR];
 
 
-byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};
-IPAddress ip(192, 168, 0, 60);
-EthernetServer server(80);
-
-
 char *memStrNum(byte strNum){
   if(strNum>=STR_CNT)
     strcpy(buffer, "");
@@ -82,6 +87,7 @@ char *memStrNum(byte strNum){
 }
 
 
+//================================= initialization functions =========================================================//
 //clean url parameters array
 void clearParams(){
 #ifdef DEBUG
@@ -98,6 +104,31 @@ void clearParams(){
 }
 
 
+void setup() {
+#ifdef DEBUG
+  Serial.begin(115200);
+  while (!Serial);
+  Serial.print("starting... ");
+#endif
+
+  Ethernet.begin(mac, ip);
+  server.begin();
+
+  int i;
+  for(i=0; i<MAX_SWITCHERS; i++)
+    switchers[i] = DEFAULT_SWITCH;
+  //TODO: how to initialize switches?
+  //pinMode(7, OUTPUT);
+  //digitalWrite(7, LOW);
+
+#ifdef DEBUG
+  Serial.println("OK");
+  Serial.print("server IP: ");
+  Serial.println(Ethernet.localIP());
+#endif
+}
+
+//================================= utility functions ================================================================//
 #ifdef DEBUG
 void printParams(){
   Serial.print("page: ");
@@ -131,6 +162,7 @@ void readClientToNull(EthernetClient client){
 }
 
 
+//================================= ethernet http server routins =====================================================//
 //this parses url into parameters arrays
 bool getFromClient(EthernetClient client)
 {
@@ -262,31 +294,6 @@ void onManualSwitchOFF(EthernetClient client){
   client.println(memStrNum(15));
 }
 
-
-void setup() {
-#ifdef DEBUG
-  Serial.begin(115200);
-  while (!Serial);
-  Serial.print("starting... ");
-#endif
-
-  Ethernet.begin(mac, ip);
-  server.begin();
-
-  int i;
-  for(i=0; i<MAX_SWITCHERS; i++)
-    switchers[i] = DEFAULT_SWITCH;
-  //TODO: how to initialize switches?
-  //pinMode(7, OUTPUT);
-  //digitalWrite(7, LOW);
-
-#ifdef DEBUG
-  Serial.println("OK");
-  Serial.print("server IP: ");
-  Serial.println(Ethernet.localIP());
-#endif
-}
-
 void badUrl(EthernetClient client){
 #ifdef DEBUG
   Serial.println("badUrl>");
@@ -344,7 +351,7 @@ void printSwitchStatus(EthernetClient client, bool _status, bool manual){
   }
 }
 
-
+//================================= event handlers ===================================================================//
 //command: 0-off, 1-on, 2-switch, 3-status
 bool onTurn(EthernetClient client, bool manual, byte command){
 #ifdef DEBUG
@@ -416,6 +423,8 @@ bool onSetIP(EthernetClient client, char* newIP){
     return true;
 }
 
+
+//====================================================================================================================//
 void loop() {
   delay(DELAY_LOOP);
   EthernetClient client = server.available();
