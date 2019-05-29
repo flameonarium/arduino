@@ -430,8 +430,8 @@ bool onStatus(EthernetClient client){
 
 
 //function to set permanent new ip address
-bool onSetIP(EthernetClient client, char* newIP){
-    return true;//TODO: ok, here we go again
+bool onSetIP(EthernetClient client, char newIP[16], char date[10]){
+    return true;
 }
 
 
@@ -475,8 +475,11 @@ void loop() {
           }
         }else if(strncmp(urlParams[paramNum], "status", /*strlen("status")*/ 6) == 0){
             done = onStatus(client);
-        }else if(strncmp(urlParams[paramNum], "setip", /*strlen("setip")*/ 5) == 0){
-            done = onSetIP(client, urlValues[paramNum]);
+            break;
+        }else if(strncmp(urlParams[paramNum], "setip", /*strlen("setip")*/ 5) == 0){ //with setip must be a date param
+            if(strncmp(urlParams[paramNum+1], "date", /*strlen("setip")*/ 4) == 0) //exmpl: auto?setip=192.168.111.111&date=20190601
+            done = onSetIP(client, urlValues[paramNum], urlValues[paramNum+1]);
+            break;
         }
         paramNum++;
       }
