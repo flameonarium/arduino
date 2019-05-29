@@ -35,6 +35,9 @@ class lionEEPROM
         //apply+get
         void save(byte dateDD, byte dateMM, byte dateYY);
         bool load();
+    private
+        //if there is no information in memory we should keep it's inner world consistent - not just garbage from it
+        void initMemory();
 };
 
 struct lionModuleMemory{

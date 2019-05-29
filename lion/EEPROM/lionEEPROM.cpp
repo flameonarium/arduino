@@ -5,13 +5,24 @@ lionEEPROM::lionEEPROM(){
 
 }
 
+void lionEEPROM::initMemory(){
+    int i;
+    memory.init = "init";
+    memory.ver = EEPROM_VERSION;
+    for(i = 0; i < 3; i++) memory.date[i] = 0;
+    for(i = 0; i < 4; i++) memory.ip[i] = 0;
+    for(i = 0; i < 6; i++) memory.mac[i] = 0;
+    for(i = 0; i < 11; i++) memory.switchers[i] = 0;
+}
+
+
 bool lionEEPROM::load(){
     int i;
     char str[16];
     //on construct do a read of structure
     EEPROM.get(0, memory);
 
-    //check for "init" sequance. If it is already in the memory - so the memory was inititalized previously
+    //check for "init" sequance. If it is already in the memory - the memory was inititalized previously
     if(initialized = (strncmp(memory.init, "init", sizeof(memory.init)) == 0)){
         //initDate
         initDate[0] = '\0';
@@ -65,8 +76,11 @@ bool lionEEPROM::load(){
                     switchers[i] = 'E';
             }
         }
+    }else{
+        //if it wasn't init before we should prepare for saving
+        initMemory();
     }
-    //do nothing if it was not pre initialized
+
     return initialized;
 }
 
@@ -76,7 +90,6 @@ void lionEEPROM::save(byte dateDD, byte dateMM, byte dateYY){
     memory.date[1] = dateMM;
     memory.date[2] = dateYY;
     memory.ver = EEPROM_VERSION;
-    memory.init = "init";
     EEPROM.put(0, memory);
     load();
 }
