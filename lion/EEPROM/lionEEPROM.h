@@ -21,7 +21,7 @@ class lionEEPROM
         lionModuleMemory memory;
 
         //and i do afraid of memory leaks, so i use as much predetermined memory as suitable
-        char initDate[11]; //01.12.2012 + \0
+        char initDate[11]; //2019.01.12 + \0
         byte ver;
         char netIP[16];//255.255.255.255 + \0
         char netMAC[18];//E1:E2:E3:E4:E5:E6 + \0
@@ -32,8 +32,8 @@ class lionEEPROM
         void setMAC(byte mac1, byte mac2, byte mac3, byte mac4, byte mac5, byte mac6);
         void setSwitch(byte indx, byte value);
 
-        //apply+get
-        void save(byte dateDD, byte dateMM, byte dateYY);
+        //lock and load. Save needs to get date of saving. No clocks aboard indeed.
+        void save(byte dateYY, byte dateMM, byte dateDD);
         bool load();
     private
         //if there is no information in memory we should keep it's inner world consistent - not just garbage from it

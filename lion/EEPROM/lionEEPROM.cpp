@@ -26,16 +26,12 @@ bool lionEEPROM::load(){
     if(initialized = (strncmp(memory.init, "init", sizeof(memory.init)) == 0)){
         //initDate
         initDate[0] = '\0';
-        for(i = 0; i < 3; i++){
-            if(i != 2){
-                itoa(memory.date[i], &str);
-                strcat(netIP, str);
-                strcat(netIP, '.');
-                }
-            else{
-                itoa(memory.date[i] + 2000, &str);
-                strcat(netIP, str);
-            }
+        itoa(memory.date[0] + 2000, &str);
+        strcat(initDate, str);
+        for(i = 1; i < 3; i++){
+            itoa(memory.date[i], &str);
+            strcat(initDate, str);
+            strcat(initDate, '.');
         }
 
         //ver
@@ -85,10 +81,10 @@ bool lionEEPROM::load(){
 }
 
 
-void lionEEPROM::save(byte dateDD, byte dateMM, byte dateYY){
-    memory.date[0] = dateDD;
+void lionEEPROM::save(byte dateYY, byte dateMM, byte dateDD){
+    memory.date[0] = dateYY;
     memory.date[1] = dateMM;
-    memory.date[2] = dateYY;
+    memory.date[2] = dateDD;
     memory.ver = EEPROM_VERSION;
     EEPROM.put(0, memory);
     load();
