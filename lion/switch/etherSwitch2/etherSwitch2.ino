@@ -29,8 +29,12 @@
 char urlParams[MAX_PARAMS][MAX_PARAM_NAME_LEN];
 char urlValues[MAX_PARAMS][MAX_PARAM_VAL_LEN];
 char urlPage[MAX_PARAM_NAME_LEN];
+
 //array of switchers. Every switch number (n) stands for Dn output of Arduino. So there is no switchers[0] and switchers[1]
-bool switchers[MAX_SWITCHERS];
+// 0: "i have no idea" / null
+// 1: true / switched on
+// 2: false / switched off
+byte switchers[MAX_SWITCHERS];
 
 
 byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};//01:01:01:01:FF:01
@@ -115,8 +119,8 @@ void setup() {
   server.begin();
 
   int i;
-  for(i=0; i<MAX_SWITCHERS; i++)
-    switchers[i] = DEFAULT_SWITCH;
+//  for(i=0; i<MAX_SWITCHERS; i++)
+//    switchers[i] = DEFAULT_SWITCH;
   //TODO: how to initialize switches?
   //pinMode(7, OUTPUT);
   //digitalWrite(7, LOW);
@@ -331,20 +335,25 @@ byte findNum(){
 }
 
 
-void printSwitchStatus(EthernetClient client, bool _status, bool manual){
+void printSwitchStatus(EthernetClient client, byte _status, bool manual){
 #ifdef DEBUG
   Serial.print("printSwitchStatus> _status=");
-  Serial.print(_status?"true":"false");
+  switch(_status){
+    case 0: Serial.println("unknown"); break;
+    case 1: Serial.println("true"); break;
+    case 2: Serial.println("false"); break;
+    default: Serial.println("error");
+  }
   Serial.print(" manual=");
   Serial.println(manual?"true":"false");
 #endif
   if(manual){//print for human
-    if(_status)
+    if(_status == 1)
       onManualSwitchON(client);
     else
       onManualSwitchOFF(client);
   }else{//print for automation
-    if(_status)
+    if(_status == 1)
       client.println(memStrNum(18));//on
     else
       client.println(memStrNum(19));//off
@@ -362,27 +371,29 @@ bool onTurn(EthernetClient client, bool manual, byte command){
 #endif
   byte num = findNum();
   bool isOk = false;
-  if(num < 2)
+  if((num < 2) || (num >= MAX_SWITCHERS))
     return false;
   pinMode(num, OUTPUT);
   
   switch(command){
     case 0: //off
       digitalWrite(num, LOW);
-      switchers[num] = false;
+      switchers[num] = 2; //off
       isOk = true;
       break;
     case 1: //on
       digitalWrite(num, HIGH);
-      switchers[num] = true;
+      switchers[num] = 1; //on
       isOk = true;
       break;
     case 2: //switch
-      if(switchers[num])
+      if(switchers[num] == 1){ //if it was "on"
         digitalWrite(num, LOW);
-      else
+        switchers[num] = 2; //now it's off
+      }else { //it was "off" or undecided
         digitalWrite(num, HIGH);
-      switchers[num] = !switchers[num];
+        switchers[num] = 1; //now it's on
+      }
       isOk = true;
       break;
     case 3: //status
