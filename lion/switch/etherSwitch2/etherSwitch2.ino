@@ -392,7 +392,7 @@ bool onTurn(EthernetClient client, bool manual, byte command){
 #endif
     byte num = findNum();
     bool isOk = false;
-    if((num < 2) || (num >= MAX_SWITCHERS))
+    if((num < 2) || (num > MAX_SWITCHERS))
         return false;
     pinMode(num, OUTPUT);
   
@@ -451,16 +451,19 @@ bool onStatus(EthernetClient client){
 
 
 //function to set permanent new ip address
-bool onSetIP(EthernetClient client, char newIP[16], char date[10]){
+bool onSetIP(EthernetClient client, char newIP[MAX_PARAM_VAL_LEN], char date[MAX_PARAM_VAL_LEN]){
     byte byteIP[] = {0, 0, 0, 0};
     byte byteNum = 0;
     byte byteDate[] = {0, 0, 0};
-    for(byte i = 0; i < 16; i++){
+    for(byte i = 0; i < MAX_PARAM_VAL_LEN; i++){
         if(newIP[i] == '.')
             byteNum++;
+        else if(newIP[i] == '\x0')
+            break;
         else
-            byteIP[i] = byteIP[i] * 10 + atoi(newIP[i]);
+            byteIP[byteNum] = byteIP[byteNum] * 10 + atoi(newIP[i]);
     }
+    //20190601
     byteDate[0] = atoi(date[2]) * 10 + atoi(date[3]);
     byteDate[1] = atoi(date[4]) * 10 + atoi(date[5]);
     byteDate[2] = atoi(date[6]) * 10 + atoi(date[7]);
@@ -471,6 +474,29 @@ bool onSetIP(EthernetClient client, char newIP[16], char date[10]){
     return true;
 }
 
+
+bool onSetSwitch(EthernetClient client, char newState[MAX_PARAM_VAL_LEN], char date[MAX_PARAM_VAL_LEN]){
+    byte indx = findNum();
+#ifdef DEBUG
+    Serial.print("onSetSwitch> index=");
+    Serial.print(indx);
+    Serial.print(" state=");
+    Serial.println(newState);
+#endif
+
+    if((indx < 2) || (indx > MAX_SWITCHERS))
+        return false;
+    byte state = atoi(newState[0]);
+    byte byteDate[] = {0, 0, 0};
+    //20190601
+    byteDate[0] = atoi(date[2]) * 10 + atoi(date[3]);
+    byteDate[1] = atoi(date[4]) * 10 + atoi(date[5]);
+    byteDate[2] = atoi(date[6]) * 10 + atoi(date[7]);
+
+    eeprom.setSwitch(indx, state);
+    eeprom.save(byteDate[0], byteDate[1], byteDate[2]);
+    return true;
+}
 
 //====================================================================================================================//
 void loop() {
@@ -514,8 +540,13 @@ void loop() {
                     done = onStatus(client);
                     break;
                 }else if(strncmp(urlParams[paramNum], "setip", /*strlen("setip")*/ 5) == 0){ //with setip must be a date param
-                    if(strncmp(urlParams[paramNum+1], "date", /*strlen("setip")*/ 4) == 0) //exmpl: auto?setip=192.168.111.111&date=20190601
+                    if(strncmp(urlParams[paramNum+1], "date", /*strlen("date")*/ 4) == 0) //exmpl: auto?setip=192.168.111.111&date=20190601
+                        //TODO: ip is too long for MAX_PARAM_VAL_LEN=10. Should increase to 16?
                         done = onSetIP(client, urlValues[paramNum], urlValues[paramNum+1]);
+                    break;
+                }else if(strncmp(urlParams[paramNum], "setswitch", /*strlen("setswitch")*/ 9) == 0){ //if you need to change startup value for switch
+                    if(strncmp(urlParams[paramNum+1], "date", /*strlen("date")*/ 4) == 0) //exmpl: auto?setswitch=1&date=20190601&num=5
+                        done = onSetSwitch(client, urlValues[paramNum], urlValues[paramNum+1]);
                     break;
                 }
                 paramNum++;
