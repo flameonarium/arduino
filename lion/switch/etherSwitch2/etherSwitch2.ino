@@ -136,12 +136,19 @@ void initEthernet(){
 }
 
 void initSwitchers(){
-  //int i;
-//  for(i=0; i<MAX_SWITCHERS; i++)
-//    switchers[i] = DEFAULT_SWITCH;
-  //TODO: how to initialize switches?
-  //pinMode(7, OUTPUT);
-  //digitalWrite(7, LOW);
+    int i;
+    if(eeprom.initialized){
+        for(i = 0; i < MAX_SWITCHERS; i++){
+            switchers[i] = eeprom.memory.switchers[i];
+            if((switchers[i] == 1) || (switchers[i] == 2)){
+                pinMode(i, OUTPUT);
+                digitalWrite(i, (switchers[i] == 1 ? HIGH : LOW));
+            }
+        }
+    }else{
+        for(i = 0; i < MAX_SWITCHERS; i++)
+            switchers[i] = 0;
+    }
 }
 
 void setup() {
