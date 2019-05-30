@@ -37,9 +37,8 @@ char urlPage[MAX_PARAM_NAME_LEN];
 byte switchers[MAX_SWITCHERS];
 
 
-byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};//01:01:01:01:FF:01
-IPAddress ip(192, 168, 0, 60);
 EthernetServer server(80);
+lionEEPROM eeprom;
 
 //================================= working with PROGMEM =============================================================//
 //MAX_STR stands for the length of the longest string in the PROGMEM array.
@@ -108,28 +107,52 @@ void clearParams(){
 }
 
 
+void initEEPROM(){
+    //load data from memory
+    if(!eeprom.load()){
+        //if it's not initialized yet, then init with default
+        eeprom.setIP(192, 168, 0, 60);
+        eeprom.setMAC(0x01, 0x01, 0x01, 0x01, 0xFF, 0x01);
+        eeprom.save(19, 01, 01);
+    }
+}
+
+
+void initEthernet(){
+    if(eeprom.initialized){
+        IPAddress ip(eeprom.memory.ip[0], eeprom.memory.ip[1], eeprom.memory.ip[2], eeprom.memory.ip[3]);
+        Ethernet.begin(eeprom.memory.mac, ip);
+    }else{
+        IPAddress ip(192, 168, 0, 60);
+        byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};//01:01:01:01:FF:01
+        Ethernet.begin(eeprom.memory.mac, ip);
+    }
+    server.begin();
+#ifdef DEBUG
+    Serial.println("OK");
+    Serial.print("server IP: ");
+    Serial.println(Ethernet.localIP());
+#endif
+}
+
+void initSwitchers(){
+  //int i;
+//  for(i=0; i<MAX_SWITCHERS; i++)
+//    switchers[i] = DEFAULT_SWITCH;
+  //TODO: how to initialize switches?
+  //pinMode(7, OUTPUT);
+  //digitalWrite(7, LOW);
+}
+
 void setup() {
 #ifdef DEBUG
   Serial.begin(115200);
   while (!Serial);
   Serial.print("starting... ");
 #endif
-
-  Ethernet.begin(mac, ip);
-  server.begin();
-
-  int i;
-//  for(i=0; i<MAX_SWITCHERS; i++)
-//    switchers[i] = DEFAULT_SWITCH;
-  //TODO: how to initialize switches?
-  //pinMode(7, OUTPUT);
-  //digitalWrite(7, LOW);
-
-#ifdef DEBUG
-  Serial.println("OK");
-  Serial.print("server IP: ");
-  Serial.println(Ethernet.localIP());
-#endif
+  initEEPROM();
+  initEthernet();
+  initSwitchers();
 }
 
 //================================= utility functions ================================================================//
