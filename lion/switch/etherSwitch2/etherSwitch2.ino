@@ -461,6 +461,22 @@ bool onStatus(EthernetClient client){
 
 //function to set permanent new ip address
 bool onSetIP(EthernetClient client, char newIP[16], char date[10]){
+    byte byteIP[] = {0, 0, 0, 0};
+    byte byteNum = 0;
+    byte byteDate[] = {0, 0, 0};
+    for(byte i = 0; i < 16; i++){
+        if(newIP[i] == '.')
+            byteNum++;
+        else
+            byteIP[i] = byteIP[i] * 10 + atoi(newIP[i]);
+    }
+    byteDate[0] = atoi(date[2]) * 10 + atoi(date[3]);
+    byteDate[1] = atoi(date[4]) * 10 + atoi(date[5]);
+    byteDate[2] = atoi(date[6]) * 10 + atoi(date[7]);
+
+    eeprom.setIP(byteIP[0], byteIP[1], byteIP[2], byteIP[3]);
+    eeprom.save(byteDate[0], byteDate[1], byteDate[2]);
+    initEthernet();
     return true;
 }
 
@@ -518,7 +534,7 @@ void loop() {
       if(!done)
         badUrl(client);
       // give the client web browser time to receive data. Is there a better way for this? Should be something
-      delay(DELAY_MS);
+      delay(DELAY_MS);//TODO: make smart delay
       client.stop();
     
 #ifdef DEBUG
