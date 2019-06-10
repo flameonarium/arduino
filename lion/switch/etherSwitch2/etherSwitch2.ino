@@ -1,7 +1,6 @@
 #include <SPI.h>
 #include <Ethernet.h>
-#define DEBUG
-#define DEFAULT_SWITCH true
+//#define DEBUG
 #define REQ_LEN 250
 //время на обработку клиенту, ms
 #define DELAY_MS 500
@@ -58,7 +57,7 @@ char buffer[MAX_STR];
 
 
 byte mac[] = {0x01, 0x01, 0x01, 0x01, 0xFF, 0x01};
-IPAddress ip(192, 168, 0, 60);
+IPAddress ip(192, 168, 0, 52);
 EthernetServer server(80);
 
 
@@ -291,11 +290,17 @@ void setup() {
   Ethernet.begin(mac, ip);
   server.begin();
 
-  int i;
-  for(i=0; i<MAX_SWITCHERS; i++)
-    switchers[i] = DEFAULT_SWITCH;
-  //pinMode(7, OUTPUT);
-  //digitalWrite(7, LOW);
+  //int i;
+  //for(i=0; i<MAX_SWITCHERS; i++)
+  //  switchers[i] = DEFAULT_SWITCH;
+  
+  pinMode(2, OUTPUT);
+  digitalWrite(2, HIGH);
+  switchers[2] = true;
+  
+  pinMode(3, OUTPUT);
+  digitalWrite(3, LOW);
+  switchers[3] = false;
 
 #ifdef DEBUG
   Serial.println("OK");
