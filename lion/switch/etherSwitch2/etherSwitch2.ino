@@ -3,7 +3,7 @@
 //#define DEBUG
 #define REQ_LEN 250
 //время на обработку клиенту, ms
-#define DELAY_MS 500
+#define DELAY_MS 5000
 //время между опросами ethernet
 #define DELAY_LOOP 100
 //размерности параметров
@@ -32,8 +32,8 @@ const char string_06[] PROGMEM = "<b>";
 const char string_07[] PROGMEM = "</b>";
 const char string_08[] PROGMEM = "&#9830;&nbsp;";//жирная точка рядом с нужным пунктом
 const char string_09[] PROGMEM = "&nbsp;&nbsp;&nbsp;"; //без точки
-const char string_10[] PROGMEM = "<a href='/manual?turn=on&num=7'>";
-const char string_11[] PROGMEM = "<a href='/manual?turn=off&num=7'>";
+const char string_10[] PROGMEM = "<a href='/manual?turn=on&num=2'>";
+const char string_11[] PROGMEM = "<a href='/manual?turn=off&num=2'>";
 const char string_12[] PROGMEM = "&#1042;&#1050;&#1051;";//ВКЛ
 const char string_13[] PROGMEM = "&#1042;&#1067;&#1050;&#1051;";//ВЫКЛ  
 const char string_14[] PROGMEM = "</a></br>";
@@ -45,13 +45,15 @@ const char string_19[] PROGMEM = "off";
 const char string_20[] PROGMEM = "status";
 const char string_21[] PROGMEM = "switch";
 const char string_22[] PROGMEM = "num";
+const char string_23[] PROGMEM = "<a href='/manual?turn=on&num=3'>";
+const char string_24[] PROGMEM = "<a href='/manual?turn=off&num=3'>";
 
 const char* const string_table[] PROGMEM = {
   string_00, string_01, string_02, string_03, string_04,
   string_05, string_06, string_07, string_08, string_09,
   string_10, string_11, string_12, string_13, string_14,
   string_15, string_16, string_17, string_18, string_19,
-  string_20, string_21, string_22
+  string_20, string_21, string_22, string_23, string_24
   };
 char buffer[MAX_STR];
 
@@ -62,7 +64,7 @@ EthernetServer server(80);
 
 
 char *memStrNum(byte strNum){
-  if(strNum>=23)
+  if(strNum>=25)
     strcpy(buffer, "");
   else
     strcpy_P(buffer, (char*)pgm_read_word(&(string_table[strNum])));
@@ -234,6 +236,63 @@ void printToClientStart(EthernetClient client){
 }
 
 
+void printManualPageForTwoSwitches(EthernetClient client){
+  client.println(memStrNum(4));  // <head><style>a{text-decoration:none;}
+  client.println(memStrNum(5));  // </style></head><html><font size=30>
+  //2="1"
+  client.println("1<br />");
+  if(switchers[2]){
+    client.println(memStrNum(8));  // &#9830;&nbsp;";//жирная точка рядом с нужным пунктом
+    client.println(memStrNum(10)); // <a href='/manual?turn=on&num=2'>
+    client.println(memStrNum(6));  // <b>
+    client.println(memStrNum(12)); // &#1042;&#1050;&#1051;";//ВКЛ
+    client.println(memStrNum(7));  // </b>
+    client.println(memStrNum(14)); // </a></br>
+    client.println(memStrNum(9));  // &nbsp;&nbsp;&nbsp;
+    client.println(memStrNum(11)); // <a href='/manual?turn=off&num=2'>
+    client.println(memStrNum(13)); // "&#1042;&#1067;&#1050;&#1051;";//ВЫКЛ  
+  }else{
+    client.println(memStrNum(9));
+    client.println(memStrNum(10));
+    client.println(memStrNum(12));
+    client.println(memStrNum(14));
+    client.println(memStrNum(8));
+    client.println(memStrNum(11));
+    client.println(memStrNum(6));
+    client.println(memStrNum(13));
+    client.println(memStrNum(7));
+  }
+  client.println(memStrNum(14)); // </a></br>
+
+  //3="2"
+  client.println("<br />2<br />");
+  if(switchers[3]){
+    client.println(memStrNum(8));  // &#9830;&nbsp;";//жирная точка рядом с нужным пунктом
+    client.println(memStrNum(23)); // <a href='/manual?turn=on&num=3'>
+    client.println(memStrNum(6));  // <b>
+    client.println(memStrNum(12)); // &#1042;&#1050;&#1051;";//ВКЛ
+    client.println(memStrNum(7));  // </b>
+    client.println(memStrNum(14)); // </a></br>
+    client.println(memStrNum(9));  // &nbsp;&nbsp;&nbsp;
+    client.println(memStrNum(24)); // <a href='/manual?turn=off&num=3'>
+    client.println(memStrNum(13)); // "&#1042;&#1067;&#1050;&#1051;";//ВЫКЛ  
+  }else{
+    client.println(memStrNum(9));
+    client.println(memStrNum(23));
+    client.println(memStrNum(12));
+    client.println(memStrNum(14));
+    client.println(memStrNum(8));
+    client.println(memStrNum(24));
+    client.println(memStrNum(6));
+    client.println(memStrNum(13));
+    client.println(memStrNum(7));
+  }
+  client.println(memStrNum(14)); // </a></br>
+
+  client.println(memStrNum(15)); // </a></font></html>
+}
+
+
 void onSwitchON(EthernetClient client){
 #ifdef DEBUG
   Serial.println("onSwitchON>");
@@ -241,19 +300,21 @@ void onSwitchON(EthernetClient client){
   //digitalWrite(7, HIGH);
   //return "<head><style>a{text-decoration:none;}</style></head><html><font size=30>&#9830;&nbsp;<a href='/?turn=on'><b>&#1042;&#1050;&#1051;</b></a></br>  &nbsp;&nbsp;&nbsp;<a href='/?turn=off'>&#1042;&#1067;&#1050;&#1051;</a></font></html>";
   //memStrNum(04) memStrNum(05) memStrNum(08) memStrNum(10) memStrNum(06) memStrNum(12) memStrNum(07) memStrNum(14) memStrNum(09) memStrNum(11) memStrNum(13) memStrNum(15;
-  client.println(memStrNum(4));
-  client.println(memStrNum(5));
-  client.println(memStrNum(8));
-  client.println(memStrNum(10));
-  client.println(memStrNum(6));
-  client.println(memStrNum(12));
-  client.println(memStrNum(7));
-  client.println(memStrNum(14));
-  client.println(memStrNum(9));
-  client.println(memStrNum(11));
-  client.println(memStrNum(13));
-  client.println(memStrNum(15));
+/*  client.println(memStrNum(4));  // <head><style>a{text-decoration:none;}
+  client.println(memStrNum(5));  // </style></head><html><font size=30>
+  client.println(memStrNum(8));  // &#9830;&nbsp;";//жирная точка рядом с нужным пунктом
+  client.println(memStrNum(10)); // <a href='/manual?turn=on&num=2'>
+  client.println(memStrNum(6));  // <b>
+  client.println(memStrNum(12)); // &#1042;&#1050;&#1051;";//ВКЛ
+  client.println(memStrNum(7));  // </b>
+  client.println(memStrNum(14)); // </a></br>
+  client.println(memStrNum(9));  // &nbsp;&nbsp;&nbsp;
+  client.println(memStrNum(11)); // <a href='/manual?turn=off&num=2'>
+  client.println(memStrNum(13)); // "&#1042;&#1067;&#1050;&#1051;";//ВЫКЛ  
+  client.println(memStrNum(15)); // </a></font></html>
+  */
   //return true;
+  printManualPageForTwoSwitches(client);
 }
 
 
@@ -264,7 +325,7 @@ void onSwitchOFF(EthernetClient client){
   //digitalWrite(7, LOW);
   //return "<head><style>a{text-decoration:none;}</style></head><html><font size=30>&nbsp;&nbsp;&nbsp;<a href='/?turn=on'>&#1042;&#1050;&#1051;</a></br>  &#9830;&nbsp;<a href='/?turn=off'><b>&#1042;&#1067;&#1050;&#1051;</b></a></font></html>";
   //memStrNum(04) memStrNum(05) memStrNum(09) memStrNum(10) memStrNum(12) memStrNum(14) memStrNum(08) memStrNum(11) memStrNum(06) memStrNum(13) memStrNum(07) memStrNum(15;
-  client.println(memStrNum(4));
+/*  client.println(memStrNum(4));
   client.println(memStrNum(5));
   client.println(memStrNum(9));
   client.println(memStrNum(10));
@@ -275,7 +336,8 @@ void onSwitchOFF(EthernetClient client){
   client.println(memStrNum(6));
   client.println(memStrNum(13));
   client.println(memStrNum(7));
-  client.println(memStrNum(15));
+  client.println(memStrNum(15));*/
+  printManualPageForTwoSwitches(client);
   //return true;
 }
 
