@@ -72,6 +72,15 @@ bool lionEEPROM::load(){
                     switchers[i] = 'E';
             }
         }
+
+        //serverIP
+        serverIP[0] = '\0';
+        for(i = 0; i < 4; i++){
+            itoa(memory.serverIp[i], &str);
+            strcat(serverIP, str);
+            if(i != 3)
+                strcat(serverIP, '.');
+        }
     }else{
         //if it wasn't init before we should prepare for saving
         initMemory();
@@ -112,4 +121,12 @@ void lionEEPROM::setMAC(byte mac1, byte mac2, byte mac3, byte mac4, byte mac5, b
 void lionEEPROM::setSwitch(byte indx, byte value){
     if(indx < 11)
         memory.switchers[indx] = value;
+}
+
+
+void lionEEPROM::setServerIP(byte ip1, byte ip2, byte ip3, byte ip4){
+    memory.serverIp[0] = ip1;
+    memory.serverIp[1] = ip2;
+    memory.serverIp[2] = ip3;
+    memory.serverIp[3] = ip4;
 }

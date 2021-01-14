@@ -26,11 +26,13 @@ class lionEEPROM
         char netIP[16];//255.255.255.255 + \0
         char netMAC[18];//E1:E2:E3:E4:E5:E6 + \0
         char switchers[12];//--tff--ff-- + \0
+        char serverIP[16];//255.255.255.255 + \0
 
         //setters
         void setIP(byte ip1, byte ip2, byte ip3, byte ip4);
         void setMAC(byte mac1, byte mac2, byte mac3, byte mac4, byte mac5, byte mac6);
         void setSwitch(byte indx, byte value);
+        void setServerIP(byte ip1, byte ip2, byte ip3, byte ip4);
 
         //lock and load. Save needs to get date of saving. No clocks aboard indeed.
         void save(byte dateYY, byte dateMM, byte dateDD);
@@ -41,12 +43,13 @@ class lionEEPROM
 };
 
 struct lionModuleMemory{
-    char init[4];
-    byte date[3];
-    byte ver;
-    byte ip[4];
-    byte mac[6];
-    byte switchers[11];
+    char init[4];       //if in memory of arduino you can read here "init", then it must be a clue
+    byte date[3];       //update date
+    byte ver;           //version of this EEPROM structure in Natural number
+    byte ip[4];         //ip of arduino
+    byte mac[6];        //mac of arduino
+    byte switchers[11]; //array of switchers default states in 00122002200 meaning --tff--ff--
+    byte serverIp[4];   //ip of server to snitch information in sudden events (movement, leak, etc.)
 }
 
 #endif
